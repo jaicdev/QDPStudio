@@ -5,6 +5,7 @@ import torchvision.transforms as transforms
 from torch.utils.data import DataLoader
 from torch import nn, optim
 import copy
+import importlib
 
 from model_loader import load_model
 from compression.pruning import Pruning
@@ -14,14 +15,30 @@ from compression.decomposition import Decomposition
 from compression.knowledge_distillation import KnowledgeDistillation
 
 class ModelCompressionFramework:
-    def __init__(self, model=None, model_name=None, dataset_name=None, batch_size=128, 
-                 custom_evaluation_fn=None, device=None, accuracy_tolerance=5.0, num_epochs=150):
+    def __init__(self, model=None, model_name=None, custom_model_path=None,
+                 dataset_name=None, custom_dataset_module=None,
+                 batch_size=128, custom_evaluation_fn=None, device=None,
+                 accuracy_tolerance=5.0, num_epochs=150):
         self.device = torch.device(device or ("cuda" if torch.cuda.is_available() else "cpu"))
-        self.model = load_model(model=model, model_name=model_name, device=self.device)
-        if dataset_name:
-            self.train_loader, self.val_loader = self.load_dataset(dataset_name, batch_size)
+        # Load custom model if provided, otherwise use model_name
+        self.model = load_model(model=model, model_name=model_name, custom_model_path=custom_model_path, device=self.device)
+        self.custom_dataset_module = custom_dataset_module
+        
+        # Load the dataset either via custom module or using predefined datasets
+        if custom_dataset_module:
+            # Expect the custom dataset module to implement get_custom_dataset() returning (train_dataset, val_dataset)
+            custom_mod = importlib.import_module(custom_dataset_module)
+            if hasattr(custom_mod, "get_custom_dataset"):
+                train_dataset, val_dataset = custom_mod.get_custom_dataset()
+            else:
+                raise ValueError("The custom dataset module must implement a 'get_custom_dataset' function.")
+        elif dataset_name:
+            train_dataset, val_dataset = self.load_standard_dataset(dataset_name, batch_size)
         else:
-            raise ValueError("A dataset name must be provided.")
+            raise ValueError("Either a dataset name or a custom dataset module must be provided.")
+        
+        self.train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
+        self.val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False)
         self.custom_evaluation_fn = custom_evaluation_fn or Evaluation(self.device).default_evaluation
         self.accuracy_tolerance = accuracy_tolerance
         self.num_epochs = num_epochs
@@ -29,34 +46,32 @@ class ModelCompressionFramework:
         self.original_metrics = {}
         self.compressed_metrics = {}
 
-    def load_dataset(self, dataset_name, batch_size):
+    def load_standard_dataset(self, dataset_name, batch_size):
         transform = transforms.Compose([
             transforms.Resize(256),
             transforms.CenterCrop(224),
             transforms.ToTensor(),
             transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
         ])
+
         if dataset_name.upper() == 'CIFAR10':
             train_dataset = torchvision.datasets.CIFAR10(root='./data', train=True, download=True, transform=transform)
             val_dataset = torchvision.datasets.CIFAR10(root='./data', train=False, download=True, transform=transform)
         elif dataset_name.upper() == 'MNIST':
-            transform = transforms.Compose([
+            transform_mnist = transforms.Compose([
                 transforms.Resize(224),
                 transforms.Grayscale(num_output_channels=3),
                 transforms.ToTensor(),
                 transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5])
             ])
-            train_dataset = torchvision.datasets.MNIST(root='./data', train=True, download=True, transform=transform)
-            val_dataset = torchvision.datasets.MNIST(root='./data', train=False, download=True, transform=transform)
+            train_dataset = torchvision.datasets.MNIST(root='./data', train=True, download=True, transform=transform_mnist)
+            val_dataset = torchvision.datasets.MNIST(root='./data', train=False, download=True, transform=transform_mnist)
         elif dataset_name.upper() == 'IMAGENET':
             train_dataset = torchvision.datasets.ImageNet(root='./data', split='train', download=True, transform=transform)
             val_dataset = torchvision.datasets.ImageNet(root='./data', split='val', download=True, transform=transform)
         else:
             raise ValueError(f"Unsupported dataset: {dataset_name}. Supported datasets: CIFAR10, MNIST, ImageNet.")
-
-        train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
-        val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False)
-        return train_loader, val_loader
+        return train_dataset, val_dataset
 
     def train_model(self, num_epochs=None, learning_rate=0.0001):
         num_epochs = num_epochs or self.num_epochs
@@ -120,8 +135,11 @@ class ModelCompressionFramework:
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run model compression with specified techniques.")
-    parser.add_argument('--dataset', type=str, required=True, help='Dataset: CIFAR10, MNIST, or ImageNet')
+    parser.add_argument('--dataset', type=str, help='Dataset to use for training and validation (e.g., CIFAR10, MNIST, ImageNet)')
+    parser.add_argument('--custom_dataset', type=str, help='Python module path for custom dataset (must implement get_custom_dataset())')
     parser.add_argument('--batch_size', type=int, default=64, help='Batch size for training and validation')
+    parser.add_argument('--custom_model', type=str, help='Path to a custom model file to load')
+    parser.add_argument('--model_name', type=str, default="resnet18", help='Model name for torchvision models')
     parser.add_argument('--prune', action='store_true', help='Perform pruning on the model')
     parser.add_argument('--quantize', action='store_true', help='Perform quantization on the model')
     parser.add_argument('--decompose', action='store_true', help='Perform decomposition on the model')
@@ -129,7 +147,13 @@ if __name__ == "__main__":
     parser.add_argument('--num_epochs', type=int, default=5, help='Number of training epochs (adjust as needed)')
     
     args = parser.parse_args()
-    model = load_model(model_name="resnet18")
-    framework = ModelCompressionFramework(model=model, dataset_name=args.dataset, 
-                                            batch_size=args.batch_size, num_epochs=args.num_epochs)
+    
+    framework = ModelCompressionFramework(
+        model_name=args.model_name,
+        custom_model_path=args.custom_model,
+        dataset_name=args.dataset,
+        custom_dataset_module=args.custom_dataset,
+        batch_size=args.batch_size,
+        num_epochs=args.num_epochs
+    )
     framework.run_pipeline(prune=args.prune, quantize=args.quantize, decompose=args.decompose, all_compressions=args.all)
