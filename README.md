@@ -1,171 +1,102 @@
----
-
 # QDP Studio
 
-QDP Studio is a unified framework for deep learning model compression. It combines quantization, decomposition, and pruning—along with optional knowledge distillation—to reduce model size, boost inference speed, and maintain accuracy. Designed with a hybrid compression pipeline, QDP Studio is ideal for optimizing deployments in resource-constrained environments.
-
----
+QDP Studio is a unified framework for deep learning model compression. It combines quantization, pruning, decomposition, and knowledge distillation to reduce model size, improve inference speed, and maintain accuracy. This streamlined pipeline for training, compressing, and evaluating models is designed to optimize deployments in resource-constrained environments.
 
 ## Features
 
-- **Quantization**  
-  Apply dynamic, static, and quantization-aware training (QAT) techniques to convert high-precision models into efficient lower-precision representations.
-
-- **Pruning**  
-  Remove redundant weights using unstructured and structured pruning methods, with iterative fine-tuning to recover accuracy.
-
-- **Decomposition**  
-  Simplify model layers using techniques like truncated SVD to reduce computational load while preserving performance.
-
-- **Knowledge Distillation**  
-  Optionally transfer knowledge from a larger pre-trained model to a smaller one for further compression benefits.
-
-- **Hybrid Compression Pipeline**  
-  Seamlessly combine all supported techniques in one pipeline to achieve unmatched efficiency.
-
-- **Comprehensive Evaluation**  
-  Evaluate the original and compressed models using key metrics including accuracy, inference time, and model size.
-
----
-
-## Future Features
-
-- **Enhanced Hyperparameter Tuning:**  
-  Automated optimization of compression settings to further streamline model compression.
-
-- **Advanced Profiler Integration:**  
-  Add torch profiler to provide detailed insights into model latency, resource usage, and performance bottlenecks while compressing.
-
----
+- **Dynamic Quantization:** Automatically apply dynamic quantization to reduce model size, focusing on environments where runtime speed is critical.
+- **Static Quantization & QAT:** Fuse model modules based on a configurable fusion strategy for optimal static quantization and quantization-aware training (QAT).
+- **Pruning:** Apply unstructured weight pruning on convolutional and linear layers, with configurable prune ratios and logging of model sparsity.
+- **Decomposition:** Use truncated SVD to approximate weight matrices in eligible layers (e.g., `nn.Linear`), with configurable rank options.
+- **Knowledge Distillation:** Distill knowledge from a larger teacher model to a smaller student model using a blended loss (cross-entropy coupled with KL divergence). Hyperparameters for temperature and blending ratio are configurable.
+- **Custom Model & Dataset Support:** Easily integrate custom models and datasets by providing a model file path or custom Python module.
 
 ## Getting Started
 
 ### Prerequisites
 
-- Python 3.7+
-- PyTorch & Torchvision
-- TIMM (for additional model support)
-- Transformers (for Hugging Face models)
-- scikit-learn, tensorly, and other dependencies (see `requirements.txt`)
+- Python 3.6+
+- PyTorch
+- torchvision
+- timm
+- transformers
+- Other dependencies: PyYAML, wandb, scikit-learn
 
-### Installation
-
-1. **Clone the Repository:**
-
-   ```bash
-   git clone https://github.com/yourusername/qdp-studio.git
-   cd qdp-studio
-   ```
-
-2. **Create a Virtual Environment:**
-
-   ```bash
-   python -m venv venv
-   source venv/bin/activate  # On Windows: venv\Scripts\activate
-   ```
-
-3. **Install Dependencies:**
-
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-4. **Configuration:**
-
-   Edit `config.yaml` to set your model parameters, device preference, batch size, learning rate, and number of epochs.
-
----
-
-## Usage
-
-### Command-Line Interface
-
-QDP Studio is run via `main.py`, which allows you to select the dataset and compression techniques.
-
-**Example Command:**
+You can install the required dependencies via pip:
 
 ```bash
-python main.py --dataset CIFAR10 --prune --quantize --decompose
+pip install -r requirements.txt
 ```
 
-This command will:
-- Train a model (default: ResNet18) on CIFAR10.
-- Apply pruning, quantization, and decomposition.
-- Evaluate and compare performance across the original and compressed models.
+### Configuration
 
-**Available Arguments:**
+The framework uses a `config.yaml` file for configuration. Ensure that this file exists in the root directory. Example settings include:
 
-- `--dataset`: Specify the dataset (CIFAR10, MNIST, ImageNet).
-- `--batch_size`: Define the batch size.
-- `--prune`: Enable pruning.
-- `--quantize`: Enable quantization.
-- `--decompose`: Enable decomposition.
-- `--all`: Run all compression techniques as a hybrid pipeline.
+```yaml
+device: "cuda"      # or "cpu", "mps" depending on your hardware
+model_name: "resnet18"
+pretrained: true
+hf_model_name: null
+timm_model_name: null
+prune_ratio: 0.2
+```
 
-### Hybrid Compression
+### Running the Pipeline
 
-Hybrid compression applies all supported techniques sequentially. The process involves:
-1. **Training:** Start with a well-trained base model.
-2. **Sequential Compression:**  
-   - **Pruning:** Remove redundant weights.  
-   - **Quantization:** Convert weights to lower precision.  
-   - **Decomposition:** Simplify model layers.
-3. **Fine-Tuning:** Recover any lost accuracy after each compression stage.
-4. **Evaluation:** Compare the original and compressed models based on accuracy, inference time, and model size.
-
-Run the hybrid pipeline using:
+To run the compression pipeline using standard datasets (such as CIFAR10, MNIST, or ImageNet), execute:
 
 ```bash
-python main.py --dataset CIFAR10 --all
+python main.py --dataset CIFAR10 --model_name resnet18 --prune --quantize --decompose --num_epochs 5
 ```
 
----
+### Using a Custom Model
 
-## Citation
+If you have a custom model file, supply its path using the `--custom_model` argument:
 
-If you use QDP Studio in your research or projects, please cite our work:
-
-```bibtex
-@ARTICLE{chaudhari2021onboard,
-  author={Chaudhari, Jay N. and Galiyawala, Hiren and Sharma, Paawan and Shukla, Pancham and Raval, Mehul S.},
-  journal={IEEE Access}, 
-  title={Onboard Person Retrieval System With Model Compression: A Case Study on Nvidia Jetson Orin AGX}, 
-  year={2025},
-  volume={13},
-  number={},
-  pages={8257-8269},
-  keywords={Clothing;Image edge detection;Surveillance;Quantization (signal);Real-time systems;Performance evaluation;Image color analysis;Graphics processing units;Videos;Computational modeling;Edge device;model compression;person attribute recognition;person retrieval;pruning;quantization;surveillance},
-  doi={10.1109/ACCESS.2025.3527134}
-}
+```bash
+python main.py --custom_model path/to/your/custom_model.pth --dataset CIFAR10 --prune --quantize --decompose --num_epochs 5
 ```
 
----
+### Using a Custom Dataset
 
-## Acknowledgements
+If you want to use a custom dataset, create a Python module that implements a function named `get_custom_dataset()` which returns a tuple `(train_dataset, val_dataset)`. For example, your custom module (e.g., `my_dataset.py`) could look like:
 
-- Supported by the Science, Technology, and Innovation (STI) Policy of Gujarat Council of Science and Technology, Department of Science and Technology, Government of the Gujarat State, India (Grant Number: GUJCOST/STI/2021-22/3858) under the project "Person Retrieval in Video Surveillance."
-- Thanks to the PyTorch and Torchvision communities for their outstanding tools and documentation.
-- Inspired by various model compression techniques and research in deep learning.
+```python
+def get_custom_dataset():
+    # Your custom dataset implementation here
+    from torchvision.datasets import FakeData
+    from torchvision.transforms import ToTensor
+    train_dataset = FakeData(transform=ToTensor())
+    val_dataset = FakeData(transform=ToTensor())
+    return train_dataset, val_dataset
+```
 
----
+Then run the pipeline with:
+
+```bash
+python main.py --custom_dataset my_dataset --custom_model path/to/your/custom_model.pth --prune --quantize --decompose --num_epochs 5
+```
+
+### Understanding the Compression Modules
+
+- **Quantization:** Review `compression/quantization.py` for configurations like fusion strategies and calibration steps.
+- **Pruning:** Check `compression/pruning.py` to configure your prune ratio and to log model sparsity.
+- **Decomposition:** Open `compression/decomposition.py` for details on the SVD approximation and setting the rank.
+- **Knowledge Distillation:** Take a look at `compression/knowledge_distillation.py` to adjust distillation parameters such as temperature and alpha.
+
+## Logging & Evaluation
+
+Logging is implemented using Python's logging module and, optionally, [Weights & Biases (wandb)](https://wandb.ai). Ensure wandb is correctly configured if you choose to leverage its logging capabilities. Evaluation metrics (accuracy, precision, recall, F1-score, latency) are computed automatically post-training and post-compression.
 
 ## Contributing
 
-Contributions are welcome! To contribute:
-1. Fork the repository.
-2. Create a feature branch: `git checkout -b feature/my-new-feature`
-3. Commit your changes: `git commit -am 'Add new feature'`
-4. Push the branch: `git push origin feature/my-new-feature`
-5. Open a pull request.
-
----
+Contributions are welcome! Please follow the repository guidelines and ensure that any changes are thoroughly tested with the entire pipeline.
 
 ## License
 
-This project is licensed under the MIT License – see the [LICENSE](LICENSE) file for details.
+[MIT License](LICENSE)
 
----
+## Acknowledgments
 
-Start compressing your models with QDP Studio and help push the boundaries of efficient deep learning deployments!
-
----
+QDP Studio leverages state-of-the-art libraries including PyTorch, torchvision, timm, and transformers. Special thanks to the contributors and the open-source community.
+```` 
