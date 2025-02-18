@@ -1,0 +1,9 @@
+model_name: null  # Torchvision model name (e.g., "resnet18")
+hf_model_name: null  # Hugging Face model name (e.g., "bert-base-uncased")
+timm_model_name: null  # TIMM model name (e.g., "efficientnet_b0")
+custom_model_path: null  # Path to a locally saved model
+pretrained: true  # Whether to use pretrained weights
+device: "cuda"  # Default device ("cuda" or "cpu")
+batch_size: 64  # Batch size for training and inference
+learning_rate: 0.001  # Learning rate for training
+num_epochs: 10  # Number of epochs for training
