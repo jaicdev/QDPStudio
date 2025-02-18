@@ -83,6 +83,7 @@ python main.py --custom_dataset my_dataset --custom_model path/to/your/custom_mo
 - **Pruning:** Check `compression/pruning.py` to configure your prune ratio and to log model sparsity.
 - **Decomposition:** Open `compression/decomposition.py` for details on the SVD approximation and setting the rank.
 - **Knowledge Distillation:** Take a look at `compression/knowledge_distillation.py` to adjust distillation parameters such as temperature and alpha.
+```` 
 
 ## Logging & Evaluation
 
@@ -99,4 +100,3 @@ Contributions are welcome! Please follow the repository guidelines and ensure th
 ## Acknowledgments
 
 QDP Studio leverages state-of-the-art libraries including PyTorch, torchvision, timm, and transformers. Special thanks to the contributors and the open-source community.
-```` 
