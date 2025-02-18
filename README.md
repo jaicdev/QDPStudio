@@ -1,3 +1,5 @@
+---
+
 # QDP Studio
 
 QDP Studio is a unified framework for deep learning model compression. It combines quantization, decomposition, and pruning—along with optional knowledge distillation—to reduce model size, boost inference speed, and maintain accuracy. Designed with a hybrid compression pipeline, QDP Studio is ideal for optimizing deployments in resource-constrained environments.
@@ -23,6 +25,16 @@ QDP Studio is a unified framework for deep learning model compression. It combin
 
 - **Comprehensive Evaluation**  
   Evaluate the original and compressed models using key metrics including accuracy, inference time, and model size.
+
+---
+
+## Future Features
+
+- **Enhanced Hyperparameter Tuning:**  
+  Automated optimization of compression settings to further streamline model compression.
+
+- **Advanced Profiler Integration:**  
+  Add torch profiler to provide detailed insights into model latency, resource usage, and performance bottlenecks while compressing.
 
 ---
 
@@ -93,10 +105,10 @@ This command will:
 ### Hybrid Compression
 
 Hybrid compression applies all supported techniques sequentially. The process involves:
-1. **Training:** Begin with a well-trained base model.
+1. **Training:** Start with a well-trained base model.
 2. **Sequential Compression:**  
    - **Pruning:** Remove redundant weights.  
-   - **Quantization:** Convert weights to lower-precision.  
+   - **Quantization:** Convert weights to lower precision.  
    - **Decomposition:** Simplify model layers.
 3. **Fine-Tuning:** Recover any lost accuracy after each compression stage.
 4. **Evaluation:** Compare the original and compressed models based on accuracy, inference time, and model size.
@@ -114,7 +126,7 @@ python main.py --dataset CIFAR10 --all
 If you use QDP Studio in your research or projects, please cite our work:
 
 ```bibtex
-@ARTICLE{10833607,
+@ARTICLE{chaudhari2021onboard,
   author={Chaudhari, Jay N. and Galiyawala, Hiren and Sharma, Paawan and Shukla, Pancham and Raval, Mehul S.},
   journal={IEEE Access}, 
   title={Onboard Person Retrieval System With Model Compression: A Case Study on Nvidia Jetson Orin AGX}, 
