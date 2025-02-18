@@ -1,6 +1,5 @@
 import torch
 import torch.nn as nn
-import torch.optim as optim
 from torch.quantization import quantize_dynamic, prepare, convert, prepare_qat
 from utils import train_model
 import warnings
@@ -9,8 +8,7 @@ class Quantization:
     def __init__(self, model, device, fusion_config=None):
         self.model = model.to(device)
         self.device = device
-        # fusion_config: a dict mapping layer names/groups that should be fused
-        # e.g., {"conv_bn": ["conv1", "bn1"], "conv_bn_relu": ["conv2", "bn2", "relu2"]}
+        # fusion_config is a dictionary with groups of modules to fuse
         self.fusion_config = fusion_config or {}
 
     def apply_dynamic_quantization(self):
@@ -24,7 +22,6 @@ class Quantization:
         """
         Apply static quantization to the model. Requires calibration data.
         """
-        # If fusion config provided, fuse modules accordingly
         if self.fusion_config:
             for group in self.fusion_config.values():
                 try:
@@ -33,7 +30,6 @@ class Quantization:
                     warnings.warn(f"Fusion of {group} failed: {e}")
         else:
             try:
-                # Fallback: attempt a default fusion
                 self.model.fuse_modules(inplace=True)
             except Exception as e:
                 warnings.warn(f"Default fusion failed: {e}")
@@ -44,7 +40,6 @@ class Quantization:
         except Exception as e:
             raise RuntimeError(f"Model preparation for static quantization failed: {e}")
             
-        # Calibration step
         with torch.no_grad():
             for data in calibration_data:
                 try:
