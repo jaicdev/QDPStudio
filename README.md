@@ -1,28 +1,28 @@
 # QDP Studio
 
-QDP Studio is a comprehensive model compression framework designed to optimize deep learning models through multiple advanced techniques: **Quantization**, **Decomposition**, and **Pruning**. With support for hybrid compression, QDP Studio enables you to significantly reduce model size, accelerate inference, and maintain high accuracy—all while streamlining deployment across various devices.
+QDP Studio is a unified framework for deep learning model compression. It combines quantization, decomposition, and pruning—along with optional knowledge distillation—to reduce model size, boost inference speed, and maintain accuracy. Designed with a hybrid compression pipeline, QDP Studio is ideal for optimizing deployments in resource-constrained environments.
 
 ---
 
 ## Features
 
 - **Quantization**  
-  Leverage dynamic, static, and quantization-aware training (QAT) techniques to convert high-precision models into lower-bit representations for faster, more efficient inference. citeturn0file0
+  Apply dynamic, static, and quantization-aware training (QAT) techniques to convert high-precision models into efficient lower-precision representations.
 
 - **Pruning**  
-  Reduce model complexity by removing redundant weights using both unstructured and structured pruning methods, combined with iterative fine-tuning to preserve performance. citeturn0file1
+  Remove redundant weights using unstructured and structured pruning methods, with iterative fine-tuning to recover accuracy.
 
 - **Decomposition**  
-  Utilize techniques such as Truncated SVD to approximate and simplify model layers, decreasing computational load without sacrificing accuracy. citeturn0file3
+  Simplify model layers using techniques like truncated SVD to reduce computational load while preserving performance.
 
 - **Knowledge Distillation**  
-  Optionally integrate teacher-student training methods to further compress and optimize models by transferring knowledge from a larger, pre-trained network. citeturn0file2
+  Optionally transfer knowledge from a larger pre-trained model to a smaller one for further compression benefits.
 
 - **Hybrid Compression Pipeline**  
-  Apply all supported compression techniques sequentially in one unified pipeline. This hybrid approach maximizes the benefits of each method, ensuring optimal trade-offs between efficiency and accuracy.
+  Seamlessly combine all supported techniques in one pipeline to achieve unmatched efficiency.
 
 - **Comprehensive Evaluation**  
-  Evaluate models using key metrics including accuracy, inference time, and model size, allowing for direct comparison between the original and compressed versions.
+  Evaluate the original and compressed models using key metrics including accuracy, inference time, and model size.
 
 ---
 
@@ -34,9 +34,7 @@ QDP Studio is a comprehensive model compression framework designed to optimize d
 - PyTorch & Torchvision
 - TIMM (for additional model support)
 - Transformers (for Hugging Face models)
-- scikit-learn
-- tensorly
-- Additional libraries: argparse, yaml, logging, wandb, etc.
+- scikit-learn, tensorly, and other dependencies (see `requirements.txt`)
 
 ### Installation
 
@@ -62,7 +60,7 @@ QDP Studio is a comprehensive model compression framework designed to optimize d
 
 4. **Configuration:**
 
-   Edit the `config.yaml` file to set model parameters, device preference, batch size, learning rate, and the number of epochs. citeturn1file1
+   Edit `config.yaml` to set your model parameters, device preference, batch size, learning rate, and number of epochs.
 
 ---
 
@@ -70,7 +68,7 @@ QDP Studio is a comprehensive model compression framework designed to optimize d
 
 ### Command-Line Interface
 
-QDP Studio is controlled via `main.py`, which offers a command-line interface to select the dataset and compression techniques you wish to apply.
+QDP Studio is run via `main.py`, which allows you to select the dataset and compression techniques.
 
 **Example Command:**
 
@@ -79,78 +77,71 @@ python main.py --dataset CIFAR10 --prune --quantize --decompose
 ```
 
 This command will:
-- Train a model (default: ResNet18) on the CIFAR10 dataset.
+- Train a model (default: ResNet18) on CIFAR10.
 - Apply pruning, quantization, and decomposition.
-- Evaluate and compare the performance of the original and each compressed variant.
+- Evaluate and compare performance across the original and compressed models.
 
 **Available Arguments:**
 
-- `--dataset`: Specify the dataset (e.g., CIFAR10, MNIST, ImageNet).
-- `--batch_size`: Define the batch size for training and evaluation.
-- `--prune`: Apply pruning.
-- `--quantize`: Apply quantization.
-- `--decompose`: Apply decomposition.
-- `--all`: Run all compression techniques as a hybrid approach and compare results.
+- `--dataset`: Specify the dataset (CIFAR10, MNIST, ImageNet).
+- `--batch_size`: Define the batch size.
+- `--prune`: Enable pruning.
+- `--quantize`: Enable quantization.
+- `--decompose`: Enable decomposition.
+- `--all`: Run all compression techniques as a hybrid pipeline.
 
-### Running Hybrid Compression
+### Hybrid Compression
 
-Hybrid compression in QDP Studio allows you to apply all the supported techniques in sequence to maximize model optimization.
+Hybrid compression applies all supported techniques sequentially. The process involves:
+1. **Training:** Begin with a well-trained base model.
+2. **Sequential Compression:**  
+   - **Pruning:** Remove redundant weights.  
+   - **Quantization:** Convert weights to lower-precision.  
+   - **Decomposition:** Simplify model layers.
+3. **Fine-Tuning:** Recover any lost accuracy after each compression stage.
+4. **Evaluation:** Compare the original and compressed models based on accuracy, inference time, and model size.
 
-#### How Hybrid Compression Works
-
-1. **Model Training:**  
-   The framework begins by training the base model on your chosen dataset, ensuring a strong initial performance.
-
-2. **Sequential Compression:**
-   - **Pruning:** Removes redundant weights to reduce overall complexity.
-   - **Quantization:** Converts model weights to lower-precision formats, enhancing efficiency.
-   - **Decomposition:** Simplifies model layers using techniques like truncated SVD to cut down on computational demands.
-
-3. **Post-Compression Fine-Tuning:**  
-   Each compression stage is followed by fine-tuning to mitigate any loss in accuracy, with customizable epochs and learning rates.
-
-4. **Evaluation:**  
-   After applying hybrid compression, the framework evaluates the model’s performance—comparing accuracy, inference time, and model size between the original and compressed versions.
-
-#### Running the Hybrid Pipeline
-
-To execute the full hybrid compression pipeline, use the `--all` flag:
+Run the hybrid pipeline using:
 
 ```bash
 python main.py --dataset CIFAR10 --all
 ```
 
-This command will:
-- Train the default model on the specified dataset.
-- Sequentially apply pruning, quantization, and decomposition.
-- Fine-tune after each step, and evaluate performance across all compression techniques.
+---
 
-#### Customization
+## Citation
 
-- **Fine-Tuning Parameters:**  
-  Adjust the number of epochs and learning rate for each fine-tuning stage directly in the source code or via configuration options.
+If you use QDP Studio in your research or projects, please cite our work:
 
-- **Compression Settings:**  
-  Modify pruning rates, quantization backends, and decomposition ranks in the `config.yaml` or within the respective modules to best suit your model and deployment requirements.
-
-- **Evaluation Metrics:**  
-  The framework logs key metrics after each compression step, providing a clear comparison to help optimize your compression strategy.
+```bibtex
+@ARTICLE{10833607,
+  author={Chaudhari, Jay N. and Galiyawala, Hiren and Sharma, Paawan and Shukla, Pancham and Raval, Mehul S.},
+  journal={IEEE Access}, 
+  title={Onboard Person Retrieval System With Model Compression: A Case Study on Nvidia Jetson Orin AGX}, 
+  year={2025},
+  volume={13},
+  number={},
+  pages={8257-8269},
+  keywords={Clothing;Image edge detection;Surveillance;Quantization (signal);Real-time systems;Performance evaluation;Image color analysis;Graphics processing units;Videos;Computational modeling;Edge device;model compression;person attribute recognition;person retrieval;pruning;quantization;surveillance},
+  doi={10.1109/ACCESS.2025.3527134}
+}
+```
 
 ---
 
 ## Acknowledgements
 
-- Supported from the Science, Technology, and Innovation (STI) Policy of Gujarat Council of Science and Technology, Department of Science and Technology, Government of the Gujarat State, India (Grant Number: GUJCOST/STI/2021-22/3858) project "Person Retrieval in Video Surveillance".
-- Thanks to the PyTorch and Torchvision communities for their excellent tools and documentation.
-- Inspired by various model compression techniques and research in the field of deep learning.
+- Supported by the Science, Technology, and Innovation (STI) Policy of Gujarat Council of Science and Technology, Department of Science and Technology, Government of the Gujarat State, India (Grant Number: GUJCOST/STI/2021-22/3858) under the project "Person Retrieval in Video Surveillance."
+- Thanks to the PyTorch and Torchvision communities for their outstanding tools and documentation.
+- Inspired by various model compression techniques and research in deep learning.
 
 ---
 
 ## Contributing
 
-Contributions are welcome! To get started:
+Contributions are welcome! To contribute:
 1. Fork the repository.
-2. Create a new branch: `git checkout -b feature/my-new-feature`
+2. Create a feature branch: `git checkout -b feature/my-new-feature`
 3. Commit your changes: `git commit -am 'Add new feature'`
 4. Push the branch: `git push origin feature/my-new-feature`
 5. Open a pull request.
@@ -159,6 +150,10 @@ Contributions are welcome! To get started:
 
 ## License
 
-This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for more details.
+This project is licensed under the MIT License – see the [LICENSE](LICENSE) file for details.
+
+---
+
+Start compressing your models with QDP Studio and help push the boundaries of efficient deep learning deployments!
 
 ---
