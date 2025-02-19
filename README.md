@@ -7,16 +7,30 @@ QDP Studio is a comprehensive model compression framework designed to optimize d
 ## Features
 
 - **Quantization**  
-  Leverage dynamic, static, and quantization-aware training (QAT) techniques to convert high-precision models into lower-bit representations for faster, more efficient inference.  
+  Leverage different quantization strategies to convert high-precision models into lower-bit representations for faster, more efficient inference. Available modes include:
+  - **default**: Standard quantization pipeline.
+  - **dynamic**: Dynamic quantization for runtime optimizations.
+  - **static**: Static quantization using calibration data.
+  - **qat**: Quantization-aware training for higher accuracy.
 
 - **Pruning**  
-  Reduce model complexity by removing redundant weights with both unstructured and structured pruning methods, combined with iterative fine-tuning to preserve performance.  
+  Reduce model complexity by removing redundant weights using various pruning techniques. Available modes include:
+  - **default**: Standard pruning procedure.
+  - **unstructured**: Prune individual weights without structure.
+  - **structured**: Remove entire neurons or filters for hardware efficiency.
+  - **iterative**: Apply pruning in iterative steps with fine-tuning after each step.
 
 - **Decomposition**  
-  Utilize techniques such as Truncated SVD to approximate and simplify model layers, decreasing computational load without sacrificing accuracy.  
+  Simplify model layers by decomposing weight matrices or tensors. Available modes include:
+  - **default**: Standard decomposition approach.
+  - **truncatedSVD**: Use truncated Singular Value Decomposition to approximate layers.
+  - **tensorDecomposition**: Apply tensor-based decomposition techniques to compress multi-dimensional weights.
 
 - **Knowledge Distillation**  
-  Optionally integrate teacher-student training methods to further compress and optimize models by transferring knowledge from a larger, pre-trained network.  
+  Transfer knowledge from a large pre-trained network (teacher) to a smaller network (student). Available modes include:
+  - **default**: Standard distillation procedure.
+  - **teacher_assisted**: Enhanced teacher assistance through additional supervision.
+  - **temperature_scaling**: Use temperature scaling to soften outputs and improve transfer.
 
 - **Hybrid Compression Pipeline**  
   Apply all supported compression techniques sequentially in one unified pipeline. This hybrid approach maximizes the benefits of each method, ensuring optimal trade-offs between efficiency and accuracy.
@@ -92,7 +106,7 @@ python main.py --dataset CIFAR10 --prune --quantize --decompose
 
 This command will:
 - Train a model (default: ResNet18) on the CIFAR10 dataset.
-- Apply pruning, quantization, and decomposition.
+- Apply pruning, quantization, and decomposition using the selected modes.
 - Evaluate and compare the performance of the original and compressed model variants.
 
 **Key Arguments:**
@@ -107,6 +121,10 @@ This command will:
 - `--decompose`: Apply decomposition.
 - `--all`: Run all compression techniques sequentially (hybrid approach).
 - `--num_epochs`: Number of training epochs.
+- `--quantization_mode`: Set quantization mode (default | dynamic | static | qat).
+- `--pruning_mode`: Set pruning mode (default | unstructured | structured | iterative).
+- `--decomposition_mode`: Set decomposition mode (default | truncatedSVD | tensorDecomposition).
+- `--kd_mode`: Set knowledge distillation mode (default | teacher_assisted | temperature_scaling).
 
 ### Using a Custom Model
 
@@ -142,18 +160,19 @@ python main.py --custom_dataset my_dataset --custom_model path/to/your/custom_mo
 Hybrid compression applies all supported techniques sequentially:
 
 1. **Model Training:**  
-   Train the base model on your chosen dataset to ensure strong initial performance.
+   Train the base model on your chosen dataset to ensure a strong initial performance.
 
 2. **Sequential Compression:**
-   - **Pruning:** Remove redundant weights to reduce complexity.
-   - **Quantization:** Convert model weights to lower precision using dynamic, static, or QAT techniques.
-   - **Decomposition:** Simplify model layers using methods like truncated SVD.
+   - **Pruning:** Remove redundant weights using the selected pruning mode.
+   - **Quantization:** Convert model weights to lower precision with the chosen quantization strategy.
+   - **Decomposition:** Simplify model layers using the preferred decomposition method.
+   - **Knowledge Distillation:** Optionally, further compress the model by transferring knowledge using the selected distillation approach.
 
 3. **Post-Compression Fine-Tuning:**  
-   Fine-tune after each compression step to mitigate loss in accuracy.
+   Fine-tune after each compression step to mitigate any loss in accuracy.
 
 4. **Evaluation:**  
-   Compare key metrics—accuracy, inference time, and model size—between the original and compressed models.
+   Compare key metrics—including accuracy, inference time, and model size—between the original and compressed models.
 
 **Run the Hybrid Pipeline using the `--all` flag:**
 
@@ -167,18 +186,18 @@ python main.py --dataset CIFAR10 --all
 
 - Logging is implemented via Python’s `logging` module, with optional integration using [Weights & Biases (wandb)](https://wandb.ai) for comprehensive experimental tracking.
 - The framework evaluates models on metrics including accuracy, precision, recall, F1-score, and inference latency.
-- Detailed logging enables monitoring the impact of each compression technique.
+- Detailed logging enables monitoring the impact of each compression technique and mode.
 
 ---
 
 ## Troubleshooting & Tips
 
 - **Configuration Issues:**  
-  Ensure your `config.yaml` is properly formatted. Invalid configurations will result in runtime errors.
+  Ensure your `config.yaml` is properly formatted. Invalid configurations may result in runtime errors.
   
 - **Custom Module Integration:**  
   Verify that any custom dataset module is on your Python path and implements the required `get_custom_dataset()` function.
-  
+
 - **Fusion Configurations:**  
   For optimal quantization, consider defining a custom fusion configuration mapping if the default does not meet your model's needs.
   
