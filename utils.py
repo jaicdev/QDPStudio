@@ -8,13 +8,25 @@ import torch.optim as optim
 import logging
 import wandb
 
-# Configure logging
+# Configure logging: you may adjust log level and format as needed.
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 def load_dataset(dataset, batch_size=32):
     """
     Loads the dataset with appropriate transforms applied.
-    The transforms are applied during the dataset creation.
+    
+    The function attempts to retrieve a train/validation split via the dataset's
+    `get_train_val_split` method. If this method is not found, it warns the user
+    that the same dataset will be used for both training and validation, which can
+    result in data leakage and overestimated evaluation metrics.
+    
+    Parameters:
+    - dataset: A dataset class or instance that supports or can be instantiated with transforms.
+    - batch_size: Batch size for training and validation loaders.
+    
+    Returns:
+    - train_loader: DataLoader for training.
+    - val_loader: DataLoader for validation.
     """
     transform = transforms.Compose([
         transforms.Resize(256),
@@ -22,14 +34,34 @@ def load_dataset(dataset, batch_size=32):
         transforms.ToTensor(),
         transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
     ])
-    # Assuming 'dataset' is a function/class that can be instantiated with transforms
-    dataset_instance = dataset(transform=transform)
-    train_dataset, val_dataset = dataset_instance.get_train_val_split() if hasattr(dataset_instance, 'get_train_val_split') else (dataset_instance, dataset_instance)
+    # Instantiate dataset if necessary. Assume dataset is callable.
+    if callable(dataset):
+        dataset_instance = dataset(transform=transform)
+    else:
+        dataset_instance = dataset
+
+    if hasattr(dataset_instance, 'get_train_val_split'):
+        train_dataset, val_dataset = dataset_instance.get_train_val_split()
+    else:
+        warnings.warn("Dataset does not provide a train/validation split. "
+                      "Using the same dataset for both training and validation may lead to data leakage.")
+        train_dataset = dataset_instance
+        val_dataset = dataset_instance
+
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
     val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False)
     return train_loader, val_loader
 
 def initialize_device(device=None):
+    """
+    Selects an appropriate device: cuda, mps (if available), or cpu.
+    
+    Parameters:
+    - device: Optional string hint to choose a device.
+    
+    Returns:
+    - torch.device instance.
+    """
     if torch.cuda.is_available():
         return torch.device(device or "cuda")
     elif hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
@@ -38,6 +70,9 @@ def initialize_device(device=None):
         return torch.device("cpu")
 
 def get_optimizer(optimizer_name, model, lr=0.001):
+    """
+    Returns an optimizer for the given model based on the optimizer_name.
+    """
     if optimizer_name.lower() == "adam":
         return optim.Adam(model.parameters(), lr=lr)
     elif optimizer_name.lower() == "sgd":
@@ -48,6 +83,9 @@ def get_optimizer(optimizer_name, model, lr=0.001):
         raise ValueError(f"Optimizer {optimizer_name} not recognized.")
 
 def get_scheduler(scheduler_name, optimizer):
+    """
+    Returns a learning rate scheduler based on scheduler_name.
+    """
     if scheduler_name.lower() == "step":
         return optim.lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.1)
     elif scheduler_name.lower() == "cosine":
@@ -58,6 +96,20 @@ def get_scheduler(scheduler_name, optimizer):
 def train_model(model, train_loader, criterion, optimizer, device, num_epochs=5, mixed_precision=False, checkpoint_path=None, scheduler=None):
     """
     Train a model with optional mixed precision training, checkpointing, and logging.
+    
+    Parameters:
+    - model: The PyTorch model to train.
+    - train_loader: DataLoader for training data.
+    - criterion: Loss function.
+    - optimizer: Optimizer for training.
+    - device: The device to perform training on.
+    - num_epochs: Number of training epochs.
+    - mixed_precision: Whether to use mixed precision training.
+    - checkpoint_path: Path to save model checkpoints.
+    - scheduler: Learning rate scheduler.
+    
+    Returns:
+    - The trained model.
     """
     model.to(device)
     model.train()
@@ -85,9 +137,7 @@ def train_model(model, train_loader, criterion, optimizer, device, num_epochs=5,
         if scheduler:
             scheduler.step()
         logging.info(f"Epoch [{epoch+1}/{num_epochs}], Loss: {total_loss/len(train_loader):.4f}")
-        # Initialize wandb if available
-        if wandb.run is not None:
-            wandb.log({"epoch": epoch+1, "loss": total_loss/len(train_loader)})
+        # Optionally save checkpoint (if checkpoint_path is provided)
         if checkpoint_path:
             torch.save(model.state_dict(), f"{checkpoint_path}/model_epoch_{epoch+1}.pth")
     return model
@@ -95,6 +145,14 @@ def train_model(model, train_loader, criterion, optimizer, device, num_epochs=5,
 def evaluate_model(model, data_loader, device):
     """
     Evaluate model performance metrics.
+    
+    Parameters:
+    - model: The PyTorch model to evaluate.
+    - data_loader: DataLoader for evaluation data.
+    - device: The device to perform evaluation on.
+    
+    Returns:
+    - A dictionary containing evaluation metrics.
     """
     model.to(device)
     model.eval()
@@ -116,7 +174,12 @@ def evaluate_model(model, data_loader, device):
     f1 = f1_score(all_labels, all_preds, average='macro')
     latency = total_time / len(data_loader)
     logging.info(f"Evaluation -> Accuracy: {accuracy:.4f}, Precision: {precision:.4f}, Recall: {recall:.4f}, F1-score: {f1:.4f}, Latency: {latency:.6f}s")
-    if wandb.run is not None:
+    if wandb.run is None:
+        try:
+            wandb.init(project="QDPStudio", reinit=True)
+        except Exception as e:
+            warnings.warn(f"WandB initialization failed: {e}")
+    else:
         wandb.log({"accuracy": accuracy, "precision": precision, "recall": recall, "f1_score": f1, "latency": latency})
     return {
         "accuracy": accuracy,
