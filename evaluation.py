@@ -6,6 +6,12 @@ class Evaluation:
         self.device = device
 
     def default_evaluation(self, model, data_loader):
+        """
+        Evaluates the model's accuracy, average inference time per batch,
+        and estimates the model size dynamically by summing the memory 
+        usage of each parameter (in MB). This accounts for different 
+        parameter data types (e.g. quantized or mixed precision).
+        """
         model.eval()
         correct, total, total_time = 0, 0, 0
 
@@ -19,9 +25,13 @@ class Evaluation:
                 correct += (preds == labels).sum().item()
                 total += labels.size(0)
 
+        # Calculate model size by summing the bytes of all parameters,
+        # then converting to megabytes.
+        model_size_bytes = sum(param.numel() * param.element_size() for param in model.parameters())
+        model_size_mb = model_size_bytes / 1e6
+
         return {
             'accuracy': 100 * correct / total,
             'inference_time': total_time / len(data_loader),
-            'model_size': sum(p.numel() for p in model.parameters()) * 4 / 1e6  # in MB
+            'model_size': model_size_mb  # size in MB
         }
-
