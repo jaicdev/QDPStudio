@@ -6,6 +6,7 @@ from torch.utils.data import DataLoader
 from torch import nn, optim
 import copy
 import importlib
+import os
 
 from model_loader import load_model
 from compression.pruning import Pruning
@@ -18,13 +19,14 @@ class ModelCompressionFramework:
     def __init__(self, model=None, model_name=None, custom_model_path=None,
                  dataset_name=None, custom_dataset_module=None,
                  batch_size=128, custom_evaluation_fn=None, device=None,
-                 accuracy_tolerance=5.0, num_epochs=150):
+                 accuracy_tolerance=5.0, num_epochs=150, log_frequency=100,
+                 checkpoint_path=None):
         self.device = torch.device(device or ("cuda" if torch.cuda.is_available() else "cpu"))
         # Load custom model if provided, otherwise use model_name
         self.model = load_model(model=model, model_name=model_name, custom_model_path=custom_model_path, device=self.device)
         self.custom_dataset_module = custom_dataset_module
         
-        # Load the dataset either via custom module or using predefined datasets
+        # Load dataset: custom dataset or standard dataset
         if custom_dataset_module:
             # Expect the custom dataset module to implement get_custom_dataset() returning (train_dataset, val_dataset)
             custom_mod = importlib.import_module(custom_dataset_module)
@@ -42,6 +44,8 @@ class ModelCompressionFramework:
         self.custom_evaluation_fn = custom_evaluation_fn or Evaluation(self.device).default_evaluation
         self.accuracy_tolerance = accuracy_tolerance
         self.num_epochs = num_epochs
+        self.log_frequency = log_frequency
+        self.checkpoint_path = checkpoint_path
         self.compressed_models = {}
         self.original_metrics = {}
         self.compressed_metrics = {}
@@ -53,11 +57,11 @@ class ModelCompressionFramework:
             transforms.ToTensor(),
             transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
         ])
-
-        if dataset_name.upper() == 'CIFAR10':
+        dataset_type = dataset_name.upper()
+        if dataset_type == 'CIFAR10':
             train_dataset = torchvision.datasets.CIFAR10(root='./data', train=True, download=True, transform=transform)
             val_dataset = torchvision.datasets.CIFAR10(root='./data', train=False, download=True, transform=transform)
-        elif dataset_name.upper() == 'MNIST':
+        elif dataset_type == 'MNIST':
             transform_mnist = transforms.Compose([
                 transforms.Resize(224),
                 transforms.Grayscale(num_output_channels=3),
@@ -66,11 +70,11 @@ class ModelCompressionFramework:
             ])
             train_dataset = torchvision.datasets.MNIST(root='./data', train=True, download=True, transform=transform_mnist)
             val_dataset = torchvision.datasets.MNIST(root='./data', train=False, download=True, transform=transform_mnist)
-        elif dataset_name.upper() == 'IMAGENET':
+        elif dataset_type == 'IMAGENET':
             train_dataset = torchvision.datasets.ImageNet(root='./data', split='train', download=True, transform=transform)
             val_dataset = torchvision.datasets.ImageNet(root='./data', split='val', download=True, transform=transform)
         else:
-            raise ValueError(f"Unsupported dataset: {dataset_name}. Supported datasets: CIFAR10, MNIST, ImageNet.")
+            raise ValueError(f"Unsupported dataset: {dataset_name}. Supported datasets: CIFAR10, MNIST, IMAGENET.")
         return train_dataset, val_dataset
 
     def train_model(self, num_epochs=None, learning_rate=0.0001):
@@ -89,9 +93,17 @@ class ModelCompressionFramework:
                 loss.backward()
                 optimizer.step()
                 running_loss += loss.item()
-                if i % 100 == 99:
-                    print(f"[Epoch {epoch + 1}, Batch {i + 1}] loss: {running_loss / 100:.3f}")
+                if (i + 1) % self.log_frequency == 0:
+                    print(f"[Epoch {epoch + 1}, Batch {i + 1}] loss: {running_loss / self.log_frequency:.3f}")
                     running_loss = 0.0
+
+            # Optional: Save checkpoint after each epoch if checkpoint_path is provided.
+            if self.checkpoint_path:
+                if not os.path.exists(self.checkpoint_path):
+                    os.makedirs(self.checkpoint_path)
+                checkpoint_file = os.path.join(self.checkpoint_path, f"model_epoch_{epoch + 1}.pth")
+                torch.save(self.model.state_dict(), checkpoint_file)
+                print(f"Checkpoint saved: {checkpoint_file}")
         print("Finished Training")
 
     def compress_model(self, prune, quantize, decompose, all_compressions):
@@ -135,7 +147,7 @@ class ModelCompressionFramework:
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run model compression with specified techniques.")
-    parser.add_argument('--dataset', type=str, help='Dataset to use for training and validation (e.g., CIFAR10, MNIST, ImageNet)')
+    parser.add_argument('--dataset', type=str, help='Dataset to use for training and validation (e.g., CIFAR10, MNIST, IMAGENET)')
     parser.add_argument('--custom_dataset', type=str, help='Python module path for custom dataset (must implement get_custom_dataset())')
     parser.add_argument('--batch_size', type=int, default=64, help='Batch size for training and validation')
     parser.add_argument('--custom_model', type=str, help='Path to a custom model file to load')
@@ -145,6 +157,8 @@ if __name__ == "__main__":
     parser.add_argument('--decompose', action='store_true', help='Perform decomposition on the model')
     parser.add_argument('--all', action='store_true', help='Perform all compression techniques')
     parser.add_argument('--num_epochs', type=int, default=5, help='Number of training epochs (adjust as needed)')
+    parser.add_argument('--log_frequency', type=int, default=100, help='Logging frequency (in number of batches)')
+    parser.add_argument('--checkpoint_path', type=str, help='Directory path to save model checkpoints')
     
     args = parser.parse_args()
     
@@ -154,6 +168,8 @@ if __name__ == "__main__":
         dataset_name=args.dataset,
         custom_dataset_module=args.custom_dataset,
         batch_size=args.batch_size,
-        num_epochs=args.num_epochs
+        num_epochs=args.num_epochs,
+        log_frequency=args.log_frequency,
+        checkpoint_path=args.checkpoint_path
     )
     framework.run_pipeline(prune=args.prune, quantize=args.quantize, decompose=args.decompose, all_compressions=args.all)
